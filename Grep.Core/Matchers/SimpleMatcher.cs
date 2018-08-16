@@ -15,8 +15,9 @@ namespace Grep.Core.Matchers
     public class SimpleMatcher : ITextMatcher
     {
         private readonly string textToMatch;
+        private readonly bool ignoreCase;
 
-        public SimpleMatcher(string textToMatch)
+        public SimpleMatcher(string textToMatch, bool ignoreCase)
         {
             if (textToMatch == null)
             {
@@ -24,6 +25,7 @@ namespace Grep.Core.Matchers
             }
 
             this.textToMatch = textToMatch;
+            this.ignoreCase = ignoreCase;
         }
 
         /// <inheritdoc />
@@ -44,7 +46,7 @@ namespace Grep.Core.Matchers
                 var lastMatch = -1;
                 do
                 {
-                    lastMatch = data.IndexOf(this.textToMatch, lastMatch + 1);
+                    lastMatch = data.IndexOf(this.textToMatch, lastMatch + 1, this.ignoreCase ? StringComparison.CurrentCultureIgnoreCase : StringComparison.CurrentCulture);
 
                     if (lastMatch >= 0)
                     {

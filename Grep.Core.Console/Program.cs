@@ -35,6 +35,9 @@ namespace Grep.Core.Console
 
             var regexp = app.Option("-e|--regexp", "Pattern to search for", CommandOptionType.SingleValue).IsRequired();
             var isSimplePattern = app.Option("-F|--fixed-strings", "Interpret pattern as a fixed string not a regular expression", CommandOptionType.NoValue);
+            var recurse = app.Option("-r|--recursive", "Read all files under each directory, recursively", CommandOptionType.NoValue);
+            var ignoreCase = app.Option("-i|--ignore-case", "Ignore case distinctions in both the pattern and the input files", CommandOptionType.NoValue);
+            var listFileMatches = app.Option("-l|--files-with-matches", "Suppress normal output; instead print the name of each input file from which output would normally have been printed", CommandOptionType.NoValue);
 
             var file = app.Argument("FILE", "Input files to search", multipleValues: true).IsRequired();
 
@@ -53,15 +56,14 @@ namespace Grep.Core.Console
             {
                 var sw = Stopwatch.StartNew();
 
-                var matcher = isSimplePattern.HasValue() ? (ITextMatcher)new SimpleMatcher(regexp.Value()) : (ITextMatcher)new RegexMatcher(regexp.Value());
-                var map = ProcessFiles(file.Values, matcher).Result;
+                var matcher = isSimplePattern.HasValue() ? (ITextMatcher)new SimpleMatcher(regexp.Value(), ignoreCase.HasValue()) : (ITextMatcher)new RegexMatcher(regexp.Value(), ignoreCase.HasValue());
+                var map = ProcessFiles(file.Values, matcher, recurse.HasValue(), listFileMatches.HasValue()).Result;
 
                 sw.Stop();
                 Write($"{map.Values.Count(x => x.matches?.Count > 0)} file(s)", ConsoleColor.Yellow);
                 Write(" with ", ConsoleColor.DarkGray);
                 Write($"{map.Values.Select(x => x.matches?.Count).Sum()} match(es)", ConsoleColor.Blue);
                 WriteLine($" in {map.Count} file(s) in {sw.Elapsed:g}", ConsoleColor.DarkGray);
-                //Console.WriteLine($"{map.Values.Count(x => x.matches?.Count > 0)} file(s) with {map.Values.Select(x => x.matches?.Count).Sum()} match(es) in {map.Count} file(s) in {sw.Elapsed:g}");
 
                 if (Debugger.IsAttached)
                 {
@@ -73,7 +75,7 @@ namespace Grep.Core.Console
             return app;
         }
 
-        private static Task<ConcurrentDictionary<string, (FileInfo fileInfo, IList<GrepMatch> matches)>> ProcessFiles(IEnumerable<string> filePatterns, ITextMatcher matcher)
+        private static Task<ConcurrentDictionary<string, (FileInfo fileInfo, IList<GrepMatch> matches)>> ProcessFiles(IEnumerable<string> filePatterns, ITextMatcher matcher, bool recurse, bool listFileMatches)
         {
             var map = new ConcurrentDictionary<string, (FileInfo fileInfo, IList<GrepMatch> matches)>();
             var tasks = new ConcurrentBag<Task>();
@@ -82,7 +84,7 @@ namespace Grep.Core.Console
                 var pathToSearch = Path.GetDirectoryName(filePattern);
                 pathToSearch = string.IsNullOrEmpty(pathToSearch) ? "." : pathToSearch;
                 var fileToSearch = Path.GetFileName(filePattern);
-                var files = Directory.EnumerateFiles(pathToSearch, fileToSearch, SearchOption.AllDirectories);
+                var files = Directory.EnumerateFiles(pathToSearch, fileToSearch, recurse ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
 
                 Parallel.ForEach(files, (fileName) =>
                 {
@@ -93,8 +95,8 @@ namespace Grep.Core.Console
                         return;
                     }
 
-                    var mmf = MemoryMappedFile.CreateFromFile(fileName, FileMode.Open);
-                    var stream = mmf.CreateViewStream(0, info.Length);
+                    var mmf = MemoryMappedFile.CreateFromFile(fileName, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
+                    var stream = mmf.CreateViewStream(0, info.Length, MemoryMappedFileAccess.Read);
                     var content = new StreamContentProvider(stream);
                     var task = matcher.GetMatches(content).ContinueWith(matches =>
                     {
@@ -109,25 +111,23 @@ namespace Grep.Core.Console
                                 Write(Path.GetRelativePath(pathToSearch, fileName), ConsoleColor.Yellow);
                                 Write(" - ", ConsoleColor.DarkGray);
                                 Write($"{matches.Result.Count} match(es)", ConsoleColor.Blue);
-                                WriteLine(":", ConsoleColor.DarkGray);
-                                foreach (var match in matches.Result)
+                                if (listFileMatches == false)
                                 {
-                                    Write(match.Line.ToString(), ConsoleColor.Blue);
-                                    Write(":", ConsoleColor.DarkGray);
-                                    Write(match.Index.ToString(), ConsoleColor.Blue);
-                                    //Console.Write(" - ");
-                                    //Write(match.Value, ConsoleColor.Blue);
+                                    WriteLine(":", ConsoleColor.DarkGray);
+                                    foreach (var match in matches.Result)
+                                    {
+                                        Write(match.Line.ToString(), ConsoleColor.Blue);
+                                        Write(":", ConsoleColor.DarkGray);
+                                        Write(match.Index.ToString(), ConsoleColor.Blue);
 
-                                    var preMatch = match.Context.Substring(0, match.Index - 1);
-                                    var postMatch = match.Context.Substring(match.Index + match.Value.Length - 1);
+                                        var preMatch = match.Context.Substring(0, match.Index - 1);
+                                        var postMatch = match.Context.Substring(match.Index + match.Value.Length - 1);
 
-                                    Console.Write(" - ");
-                                    Write(preMatch.TrimStart(), ConsoleColor.DarkGray);
-                                    Write(match.Value, ConsoleColor.Blue);
-                                    WriteLine(postMatch.TrimEnd(), ConsoleColor.DarkGray);
-                                    //WriteLine(match.Context.Trim(), ConsoleColor.DarkGray);
-
-                                    //Console.WriteLine($"{Path.GetRelativePath(pathToSearch, fileName)} - {match.Line}:{match.Index} - {match.Value} - {match.Context.Trim()}");
+                                        Console.Write(" - ");
+                                        Write(preMatch.TrimStart(), ConsoleColor.DarkGray);
+                                        Write(match.Value, ConsoleColor.Blue);
+                                        WriteLine(postMatch.TrimEnd(), ConsoleColor.DarkGray);
+                                    }
                                 }
 
                                 Console.WriteLine();

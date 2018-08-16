@@ -20,7 +20,7 @@ namespace Grep.Core.Tests.Matchers
         [TestMethod]
         public void TestSimpleMatch()
         {
-            var matcher = new SimpleMatcher("text");
+            var matcher = new SimpleMatcher("text", false);
             var content = new StringContentProvider("Simple test text content.");
 
             var matches = matcher.GetMatches(content).Result;
@@ -32,7 +32,7 @@ namespace Grep.Core.Tests.Matchers
         [TestMethod]
         public void TestSimpleNoMatch()
         {
-            var matcher = new SimpleMatcher("Not present");
+            var matcher = new SimpleMatcher("Not present", false);
             var content = new StringContentProvider("Simple test text content.");
 
             var matches = matcher.GetMatches(content).Result;
@@ -43,7 +43,7 @@ namespace Grep.Core.Tests.Matchers
         [TestMethod]
         public void TestMultipleSimpleMatch()
         {
-            var matcher = new SimpleMatcher("te");
+            var matcher = new SimpleMatcher("te", false);
             var content = new StringContentProvider("Simple test text content.");
 
             var matches = matcher.GetMatches(content).Result;

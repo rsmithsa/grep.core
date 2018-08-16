@@ -17,14 +17,14 @@ namespace Grep.Core.Matchers
     {
         private readonly Regex regex;
 
-        public RegexMatcher(string pattern)
+        public RegexMatcher(string pattern, bool ignoreCase)
         {
             if (pattern == null)
             {
                 throw new ArgumentNullException(nameof(pattern));
             }
 
-            this.regex = new Regex(pattern, RegexOptions.Compiled);
+            this.regex = new Regex(pattern, RegexOptions.Compiled | (ignoreCase ? RegexOptions.IgnoreCase : RegexOptions.None));
         }
 
         /// <inheritdoc />

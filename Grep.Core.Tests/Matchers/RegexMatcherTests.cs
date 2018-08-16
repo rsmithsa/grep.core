@@ -20,7 +20,7 @@ namespace Grep.Core.Tests.Matchers
         [TestMethod]
         public void TestRegexMatch()
         {
-            var matcher = new RegexMatcher("tex[Tt]");
+            var matcher = new RegexMatcher("tex[Tt]", false);
             var content = new StringContentProvider("Simple test text content.");
 
             var matches = matcher.GetMatches(content).Result;
@@ -32,7 +32,7 @@ namespace Grep.Core.Tests.Matchers
         [TestMethod]
         public void TestRegexNoMatch()
         {
-            var matcher = new RegexMatcher("Not pr.*nt");
+            var matcher = new RegexMatcher("Not pr.*nt", false);
             var content = new StringContentProvider("Simple test text content.");
 
             var matches = matcher.GetMatches(content).Result;
@@ -43,7 +43,7 @@ namespace Grep.Core.Tests.Matchers
         [TestMethod]
         public void TestMultipleRegexMatch()
         {
-            var matcher = new RegexMatcher("te[sxn]");
+            var matcher = new RegexMatcher("te[sxn]", false);
             var content = new StringContentProvider("Simple test text content.");
 
             var matches = matcher.GetMatches(content).Result;

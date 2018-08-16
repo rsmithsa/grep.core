@@ -23,6 +23,6 @@ namespace Grep.Core.ContentProviders
             this.Content = new StringReader(text);
         }
 
-        public TextReader Content { get; private set; }
+        public TextReader Content { get; }
     }
 }
