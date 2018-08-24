@@ -95,7 +95,21 @@ namespace Grep.Core.Console
                         return;
                     }
 
-                    var mmf = MemoryMappedFile.CreateFromFile(fileName, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
+                    MemoryMappedFile mmf;
+                    try
+                    {
+                        mmf = MemoryMappedFile.CreateFromFile(fileName, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
+                    }
+                    catch (IOException ex)
+                    {
+                        Write(Path.GetRelativePath(pathToSearch, fileName), ConsoleColor.Red);
+                        Write(" - ", ConsoleColor.DarkGray);
+                        Write(ex.Message, ConsoleColor.DarkGray);
+
+                        Console.WriteLine();
+                        return;
+                    }
+
                     var stream = mmf.CreateViewStream(0, info.Length, MemoryMappedFileAccess.Read);
                     var content = new StreamContentProvider(stream);
                     var task = matcher.GetMatches(content).ContinueWith(matches =>
