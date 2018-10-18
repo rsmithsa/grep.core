@@ -4,6 +4,8 @@
 // </copyright>
 //-----------------------------------------------------------------------
 
+using System.Threading;
+
 namespace Grep.Core.Console
 {
     using System;
@@ -56,32 +58,90 @@ namespace Grep.Core.Console
                 app.ShowHelp();
             });
 
-            app.OnExecute(() =>
+            app.OnExecute(async () =>
             {
                 var sw = Stopwatch.StartNew();
 
                 var matcher = isSimplePattern.HasValue() ? (ITextMatcher)new SimpleMatcher(regexp.Value(), ignoreCase.HasValue()) : (ITextMatcher)new RegexMatcher(regexp.Value(), ignoreCase.HasValue());
-                var map = ProcessFiles(file.Values, matcher, recurse.HasValue(), listFileMatches.HasValue(), ignoreBinary.HasValue(), excludeDir.Value()).Result;
 
-                sw.Stop();
-                Write($"{map.Values.Count(x => x.matches?.Count > 0)} file(s)", ConsoleColor.Yellow);
-                Write(" with ", ConsoleColor.DarkGray);
-                Write($"{map.Values.Select(x => x.matches?.Count).Sum()} match(es)", ConsoleColor.Blue);
-                WriteLine($" in {map.Count} file(s) in {sw.Elapsed:g}", ConsoleColor.DarkGray);
+                var results = new ResultInfo();
 
-                if (Debugger.IsAttached)
+                var printTask = Task.Run(() => {
+                    while (!results.Results.IsCompleted)
+                    {
+                        try
+                        {
+                            var data = results.Results.Take();
+
+                            lock (Console.Out)
+                            {
+                                results.MatchedFiles++;
+                                results.TotalMatches += data.matches.Count;
+                                Write(data.fileName, ConsoleColor.Yellow);
+                                Write(" - ", ConsoleColor.DarkGray);
+                                Write($"{data.matches.Count} match(es)", ConsoleColor.Blue);
+                                if (!listFileMatches.HasValue())
+                                {
+                                    WriteLine(":", ConsoleColor.DarkGray);
+                                    foreach (var match in data.matches)
+                                    {
+                                        Write(match.Line.ToString(), ConsoleColor.Blue);
+                                        Write(":", ConsoleColor.DarkGray);
+                                        Write(match.Index.ToString(), ConsoleColor.Blue);
+
+                                        var preMatch = match.Context.Substring(0, match.Index - 1);
+                                        var postMatch = match.Context.Substring(match.Index + match.Value.Length - 1);
+
+                                        Console.Write(" - ");
+                                        Write(preMatch.TrimStart(), ConsoleColor.DarkGray);
+                                        Write(match.Value, ConsoleColor.Blue);
+                                        WriteLine(postMatch.TrimEnd(), ConsoleColor.DarkGray);
+                                    }
+                                }
+
+                                Console.WriteLine();
+                            }
+                        }
+                        catch (InvalidOperationException)
+                        {
+                            // Take() was called on a completed collection.
+                            // We will break out on the next iteration.
+                        }
+                    }
+                });
+
+                var processTask = ProcessFiles(file.Values, matcher, results, recurse.HasValue(), listFileMatches.HasValue(), ignoreBinary.HasValue(), excludeDir.Value());
+
+                await Task.WhenAll(printTask, processTask).ContinueWith(t =>
                 {
-                    Console.WriteLine("Press any key to continue...");
-                    Console.ReadKey(true);
-                }
+                    sw.Stop();
+                    Write($"{results.MatchedFiles} file(s)", ConsoleColor.Yellow);
+                    Write(" with ", ConsoleColor.DarkGray);
+                    Write($"{results.TotalMatches} match(es)", ConsoleColor.Blue);
+                    WriteLine($" in {results.TotalFiles} file(s) in {sw.Elapsed:g}", ConsoleColor.DarkGray);
+
+                    if (Debugger.IsAttached)
+                    {
+                        Console.WriteLine("Press any key to continue...");
+                        Console.ReadKey(true);
+                    }
+                });
             });
 
             return app;
         }
 
-        private static Task<ConcurrentDictionary<string, (FileInfo fileInfo, IList<GrepMatch> matches)>> ProcessFiles(IEnumerable<string> filePatterns, ITextMatcher matcher, bool recurse, bool listFileMatches, bool ignoreBinary, string excludeDir)
+        private class ResultInfo
         {
-            var map = new ConcurrentDictionary<string, (FileInfo fileInfo, IList<GrepMatch> matches)>();
+            public BlockingCollection<(string fileName, FileInfo fileInfo, IList<GrepMatch> matches)> Results { get; } = new BlockingCollection<(string fileName, FileInfo fileInfo, IList<GrepMatch> matches)>();
+
+            public int MatchedFiles = 0;
+            public int TotalMatches = 0;
+            public int TotalFiles = 0;
+        }
+
+        private static Task ProcessFiles(IEnumerable<string> filePatterns, ITextMatcher matcher, ResultInfo results, bool recurse, bool listFileMatches, bool ignoreBinary, string excludeDir)
+        {
             var tasks = new ConcurrentBag<Task>();
 
             var dirRegex = string.IsNullOrEmpty(excludeDir) ? null : new Regex(excludeDir, RegexOptions.Compiled);
@@ -116,10 +176,10 @@ namespace Grep.Core.Console
 
                 Parallel.ForEach(files, (fileName) =>
                 {
+                    Interlocked.Increment(ref results.TotalFiles);
                     var info = new FileInfo(fileName);
                     if (info.Length == 0)
                     {
-                        map[fileName] = (info, null);
                         return;
                     }
 
@@ -173,35 +233,9 @@ namespace Grep.Core.Console
                         stream.Close();
                         mmf.Dispose();
 
-                        map[fileName] = (info, matches.Result);
                         if (matches.Result.Count > 0)
                         {
-                            lock (Console.Out)
-                            {
-                                Write(Path.GetRelativePath(pathToSearch, fileName), ConsoleColor.Yellow);
-                                Write(" - ", ConsoleColor.DarkGray);
-                                Write($"{matches.Result.Count} match(es)", ConsoleColor.Blue);
-                                if (listFileMatches == false)
-                                {
-                                    WriteLine(":", ConsoleColor.DarkGray);
-                                    foreach (var match in matches.Result)
-                                    {
-                                        Write(match.Line.ToString(), ConsoleColor.Blue);
-                                        Write(":", ConsoleColor.DarkGray);
-                                        Write(match.Index.ToString(), ConsoleColor.Blue);
-
-                                        var preMatch = match.Context.Substring(0, match.Index - 1);
-                                        var postMatch = match.Context.Substring(match.Index + match.Value.Length - 1);
-
-                                        Console.Write(" - ");
-                                        Write(preMatch.TrimStart(), ConsoleColor.DarkGray);
-                                        Write(match.Value, ConsoleColor.Blue);
-                                        WriteLine(postMatch.TrimEnd(), ConsoleColor.DarkGray);
-                                    }
-                                }
-
-                                Console.WriteLine();
-                            }
+                            results.Results.Add((Path.GetRelativePath(pathToSearch, fileName), info, matches.Result));
                         }
                     });
 
@@ -209,7 +243,11 @@ namespace Grep.Core.Console
                 });
             }
 
-            return Task.WhenAll(tasks).ContinueWith(t => map);
+            return Task.WhenAll(tasks).ContinueWith(t =>
+            {
+                results.Results.CompleteAdding();
+                return;
+            });
         }
 
         private static void Write(string text, ConsoleColor colour)
