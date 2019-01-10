@@ -12,18 +12,17 @@ namespace Grep.Core.Tests.Matchers
 
     using Grep.Core.ContentProviders;
     using Grep.Core.Matchers;
-    using Microsoft.VisualStudio.TestTools.UnitTesting;
+    using Xunit;
 
     /// <summary>
     /// Tests for the <see cref="RegexMatcher"/>.
     /// </summary>
-    [TestClass]
     public class RegexMatcherTests : TestBase
     {
         /// <summary>
         /// Tests an input with a single match.
         /// </summary>
-        [TestMethod]
+        [Fact]
         public void TestRegexMatch()
         {
             var matcher = new RegexMatcher("tex[Tt]", false);
@@ -31,14 +30,14 @@ namespace Grep.Core.Tests.Matchers
 
             var matches = matcher.GetMatches(content).Result;
 
-            Assert.AreEqual(1, matches.Count);
-            Assert.AreEqual(13, matches[0].Index);
+            Assert.Equal(1, matches.Count);
+            Assert.Equal(13, matches[0].Index);
         }
 
         /// <summary>
         /// Tests a non-matching input.
         /// </summary>
-        [TestMethod]
+        [Fact]
         public void TestRegexNoMatch()
         {
             var matcher = new RegexMatcher("Not pr.*nt", false);
@@ -46,13 +45,13 @@ namespace Grep.Core.Tests.Matchers
 
             var matches = matcher.GetMatches(content).Result;
 
-            Assert.AreEqual(0, matches.Count);
+            Assert.Equal(0, matches.Count);
         }
 
         /// <summary>
         /// Tests an input with multiple matches.
         /// </summary>
-        [TestMethod]
+        [Fact]
         public void TestMultipleRegexMatch()
         {
             var matcher = new RegexMatcher("te[sxn]", false);
@@ -60,10 +59,10 @@ namespace Grep.Core.Tests.Matchers
 
             var matches = matcher.GetMatches(content).Result;
 
-            Assert.AreEqual(3, matches.Count);
-            Assert.AreEqual(8, matches[0].Index);
-            Assert.AreEqual(13, matches[1].Index);
-            Assert.AreEqual(21, matches[2].Index);
+            Assert.Equal(3, matches.Count);
+            Assert.Equal(8, matches[0].Index);
+            Assert.Equal(13, matches[1].Index);
+            Assert.Equal(21, matches[2].Index);
         }
     }
 }
