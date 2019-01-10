@@ -11,6 +11,9 @@ namespace Grep.Core.Tests
     using System.Text;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
+    /// <summary>
+    /// Base class for unit tests.
+    /// </summary>
     [TestClass]
     public abstract class TestBase
     {

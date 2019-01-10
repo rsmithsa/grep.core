@@ -14,9 +14,15 @@ namespace Grep.Core.Tests.Matchers
     using Grep.Core.Matchers;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
+    /// <summary>
+    /// Tests for the <see cref="RegexMatcher"/>.
+    /// </summary>
     [TestClass]
     public class RegexMatcherTests : TestBase
     {
+        /// <summary>
+        /// Tests an input with a single match.
+        /// </summary>
         [TestMethod]
         public void TestRegexMatch()
         {
@@ -29,6 +35,9 @@ namespace Grep.Core.Tests.Matchers
             Assert.AreEqual(13, matches[0].Index);
         }
 
+        /// <summary>
+        /// Tests a non-matching input.
+        /// </summary>
         [TestMethod]
         public void TestRegexNoMatch()
         {
@@ -40,6 +49,9 @@ namespace Grep.Core.Tests.Matchers
             Assert.AreEqual(0, matches.Count);
         }
 
+        /// <summary>
+        /// Tests an input with multiple matches.
+        /// </summary>
         [TestMethod]
         public void TestMultipleRegexMatch()
         {

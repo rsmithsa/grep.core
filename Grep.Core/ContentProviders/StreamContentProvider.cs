@@ -11,8 +11,15 @@ namespace Grep.Core.ContentProviders
     using System.IO;
     using System.Text;
 
+    /// <summary>
+    /// An <see cref="ITextContentProvider"/> which wraps a <see cref="StreamReader"/>.
+    /// </summary>
     public class StreamContentProvider : ITextContentProvider
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="StreamContentProvider"/> class.
+        /// </summary>
+        /// <param name="input">The input stream.</param>
         public StreamContentProvider(Stream input)
         {
             if (input == null)
@@ -23,6 +30,7 @@ namespace Grep.Core.ContentProviders
             this.Content = new StreamReader(input);
         }
 
+        /// <inheritdoc />
         public TextReader Content { get; }
     }
 }

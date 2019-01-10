@@ -11,8 +11,14 @@ namespace Grep.Core.ContentProviders
     using System.IO;
     using System.Text;
 
+    /// <summary>
+    /// Interface for a text content provider.
+    /// </summary>
     public interface ITextContentProvider
     {
+        /// <summary>
+        /// Gets the text content.
+        /// </summary>
         TextReader Content { get; }
     }
 }

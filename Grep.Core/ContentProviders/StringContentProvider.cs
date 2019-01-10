@@ -11,8 +11,15 @@ namespace Grep.Core.ContentProviders
     using System.IO;
     using System.Text;
 
+    /// <summary>
+    /// An <see cref="ITextContentProvider"/> which wraps a <see cref="StringReader"/>.
+    /// </summary>
     public class StringContentProvider : ITextContentProvider
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="StringContentProvider"/> class.
+        /// </summary>
+        /// <param name="text">The text content.</param>
         public StringContentProvider(string text)
         {
             if (text == null)
@@ -23,6 +30,7 @@ namespace Grep.Core.ContentProviders
             this.Content = new StringReader(text);
         }
 
+        /// <inheritdoc />
         public TextReader Content { get; }
     }
 }

@@ -13,7 +13,9 @@ namespace Grep.Core
     public class FileProvider
     {
         public bool Recurse { get; }
+
         public bool IgnoreBinary { get; }
+
         public string ExcludeDirectories { get; }
 
         public IEnumerable<string> EnumerateFiles(IEnumerable<string> filePatterns)

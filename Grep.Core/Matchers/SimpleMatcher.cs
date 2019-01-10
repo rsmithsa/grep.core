@@ -12,11 +12,19 @@ namespace Grep.Core.Matchers
     using System.Threading.Tasks;
     using Grep.Core.ContentProviders;
 
+    /// <summary>
+    /// An <see cref="ITextMatcher"/> which uses a simple search to find matches.
+    /// </summary>
     public class SimpleMatcher : ITextMatcher
     {
         private readonly string textToMatch;
         private readonly bool ignoreCase;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SimpleMatcher"/> class.
+        /// </summary>
+        /// <param name="textToMatch">The text to match.</param>
+        /// <param name="ignoreCase">Specifies case-insensitive matching.</param>
         public SimpleMatcher(string textToMatch, bool ignoreCase)
         {
             if (textToMatch == null)

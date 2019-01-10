@@ -13,10 +13,18 @@ namespace Grep.Core.Matchers
     using System.Threading.Tasks;
     using Grep.Core.ContentProviders;
 
+    /// <summary>
+    /// An <see cref="ITextMatcher"/> which uses regular expressions to find matches.
+    /// </summary>
     public class RegexMatcher : ITextMatcher
     {
         private readonly Regex regex;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="RegexMatcher"/> class.
+        /// </summary>
+        /// <param name="pattern">The pattern to match.</param>
+        /// <param name="ignoreCase">Specifies case-insensitive matching.</param>
         public RegexMatcher(string pattern, bool ignoreCase)
         {
             if (pattern == null)

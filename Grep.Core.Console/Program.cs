@@ -4,8 +4,6 @@
 // </copyright>
 //-----------------------------------------------------------------------
 
-using System.Threading;
-
 namespace Grep.Core.Console
 {
     using System;
@@ -18,14 +16,23 @@ namespace Grep.Core.Console
     using System.Linq;
     using System.Reflection;
     using System.Text.RegularExpressions;
+    using System.Threading;
     using System.Threading.Tasks;
 
     using Grep.Core.ContentProviders;
     using Grep.Core.Matchers;
     using McMaster.Extensions.CommandLineUtils;
 
+    /// <summary>
+    /// grep.core's console application.
+    /// </summary>
     public class Program
     {
+        /// <summary>
+        /// Entry point for grep.core's console application.
+        /// </summary>
+        /// <param name="args">Command line parameters.</param>
+        /// <returns>The return code.</returns>
         public static int Main(string[] args)
         {
             return ConfigureApplication().Execute(args);
@@ -66,7 +73,8 @@ namespace Grep.Core.Console
 
                 var results = new ResultInfo();
 
-                var printTask = Task.Run(() => {
+                var printTask = Task.Run(() =>
+                {
                     while (!results.Results.IsCompleted)
                     {
                         try
@@ -129,15 +137,6 @@ namespace Grep.Core.Console
             });
 
             return app;
-        }
-
-        private class ResultInfo
-        {
-            public BlockingCollection<(string fileName, FileInfo fileInfo, IList<GrepMatch> matches)> Results { get; } = new BlockingCollection<(string fileName, FileInfo fileInfo, IList<GrepMatch> matches)>();
-
-            public int MatchedFiles = 0;
-            public int TotalMatches = 0;
-            public int TotalFiles = 0;
         }
 
         private static Task ProcessFiles(IEnumerable<string> filePatterns, ITextMatcher matcher, ResultInfo results, bool recurse, bool listFileMatches, bool ignoreBinary, string excludeDir)
@@ -262,6 +261,17 @@ namespace Grep.Core.Console
             Console.ForegroundColor = colour;
             Console.WriteLine(text);
             Console.ResetColor();
+        }
+
+        private class ResultInfo
+        {
+#pragma warning disable SA1401 // Fields should be private
+            public int MatchedFiles = 0;
+            public int TotalMatches = 0;
+            public int TotalFiles = 0;
+#pragma warning restore SA1401 // Fields should be private
+
+            public BlockingCollection<(string fileName, FileInfo fileInfo, IList<GrepMatch> matches)> Results { get; } = new BlockingCollection<(string fileName, FileInfo fileInfo, IList<GrepMatch> matches)>();
         }
     }
 }
