@@ -44,6 +44,11 @@ namespace Grep.Core.Console
             app.Name = "grep.core";
             app.Description = "Intelligent grep in .NET Core";
 
+            app.HelpOption();
+            app.ThrowOnUnexpectedArgument = false;
+            app.MakeSuggestionsInErrorMessage = true;
+            app.VersionOptionFromAssemblyAttributes(Assembly.GetExecutingAssembly());
+
             var regexp = app.Option("-e|--regexp", "Pattern to search for", CommandOptionType.SingleValue).IsRequired();
             var isSimplePattern = app.Option("-F|--fixed-strings", "Interpret pattern as a fixed string not a regular expression", CommandOptionType.NoValue);
             var recurse = app.Option("-r|--recursive", "Read all files under each directory, recursively", CommandOptionType.NoValue);
@@ -53,17 +58,6 @@ namespace Grep.Core.Console
             var excludeDir = app.Option("--exclude-dir", "Exclude directories matching the pattern from recursive searches", CommandOptionType.SingleValue);
 
             var file = app.Argument("FILE", "Input files to search", multipleValues: true).IsRequired();
-
-            app.HelpOption();
-            app.VersionOptionFromAssemblyAttributes(Assembly.GetExecutingAssembly());
-
-            app.OnValidationError(x =>
-            {
-                Console.Error.WriteLine(x.ErrorMessage);
-
-                Console.WriteLine();
-                app.ShowHelp();
-            });
 
             app.OnExecute(async () =>
             {
