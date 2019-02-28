@@ -20,6 +20,7 @@ namespace Grep.Core.Console
     using System.Threading.Tasks;
 
     using Grep.Core.ContentProviders;
+    using Grep.Core.Formatters;
     using Grep.Core.Matchers;
     using McMaster.Extensions.CommandLineUtils;
 
@@ -65,6 +66,8 @@ namespace Grep.Core.Console
 
                 var matcher = isSimplePattern.HasValue() ? (ITextMatcher)new SimpleMatcher(regexp.Value(), ignoreCase.HasValue()) : (ITextMatcher)new RegexMatcher(regexp.Value(), ignoreCase.HasValue());
 
+                var formatter = new DefaultFormatter();
+
                 var results = new ResultInfo();
 
                 var printTask = Task.Run(() =>
@@ -87,17 +90,8 @@ namespace Grep.Core.Console
                                     WriteLine(":", ConsoleColor.DarkGray);
                                     foreach (var match in data.matches)
                                     {
-                                        Write(match.Line.ToString(), ConsoleColor.Blue);
-                                        Write(":", ConsoleColor.DarkGray);
-                                        Write(match.Index.ToString(), ConsoleColor.Blue);
-
-                                        var preMatch = match.Context.Substring(0, match.Index - 1);
-                                        var postMatch = match.Context.Substring(match.Index + match.Value.Length - 1);
-
-                                        Console.Write(" - ");
-                                        Write(preMatch.TrimStart(), ConsoleColor.DarkGray);
-                                        Write(match.Value, ConsoleColor.Blue);
-                                        WriteLine(postMatch.TrimEnd(), ConsoleColor.DarkGray);
+                                        var formatted = formatter.FormatMatch(match);
+                                        Write(formatted);
                                     }
                                 }
 
@@ -241,6 +235,22 @@ namespace Grep.Core.Console
                 results.Results.CompleteAdding();
                 return;
             });
+        }
+
+        private static void Write(FormattedMatch formattedMatch)
+        {
+            Write(formattedMatch.Match.Line.ToString(), ConsoleColor.Blue);
+            Write(":", ConsoleColor.DarkGray);
+            Write(formattedMatch.Match.Index.ToString(), ConsoleColor.Blue);
+
+            Console.Write(" - ");
+
+            foreach (var formattedSpan in formattedMatch.Spans)
+            {
+                Write(formattedSpan.Text, formattedSpan.Colour);
+            }
+
+            Console.WriteLine();
         }
 
         private static void Write(string text, ConsoleColor colour)
