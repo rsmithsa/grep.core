@@ -80,18 +80,27 @@ namespace Grep.Core.Console
 
                             lock (Console.Out)
                             {
-                                results.MatchedFiles++;
-                                results.TotalMatches += data.matches.Count;
-                                Write(data.fileName, ConsoleColor.Yellow);
-                                Write(" - ", ConsoleColor.DarkGray);
-                                Write($"{data.matches.Count} match(es)", ConsoleColor.Blue);
-                                if (!listFileMatches.HasValue())
+                                if (data.error != null)
                                 {
-                                    WriteLine(":", ConsoleColor.DarkGray);
-                                    foreach (var match in data.matches)
+                                    Write(data.fileName, ConsoleColor.Red);
+                                    Write(" - ", ConsoleColor.DarkGray);
+                                    Write(data.error, ConsoleColor.DarkGray);
+                                }
+                                else
+                                {
+                                    results.MatchedFiles++;
+                                    results.TotalMatches += data.matches.Count;
+                                    Write(data.fileName, ConsoleColor.Yellow);
+                                    Write(" - ", ConsoleColor.DarkGray);
+                                    Write($"{data.matches.Count} match(es)", ConsoleColor.Blue);
+                                    if (!listFileMatches.HasValue())
                                     {
-                                        var formatted = formatter.FormatMatch(match);
-                                        Write(formatted);
+                                        WriteLine(":", ConsoleColor.DarkGray);
+                                        foreach (var match in data.matches)
+                                        {
+                                            var formatted = formatter.FormatMatch(match);
+                                            Write(formatted);
+                                        }
                                     }
                                 }
 
@@ -152,15 +161,7 @@ namespace Grep.Core.Console
                     }
                     catch (IOException ex)
                     {
-                        lock (Console.Out)
-                        {
-                            Write(Path.GetRelativePath(pathToSearch, fileInfo.Path), ConsoleColor.Red);
-                            Write(" - ", ConsoleColor.DarkGray);
-                            Write(ex.Message, ConsoleColor.DarkGray);
-
-                            Console.WriteLine();
-                        }
-
+                        results.Results.Add((Path.GetRelativePath(pathToSearch, fileInfo.Path), null, ex.Message));
                         return;
                     }
 
@@ -171,15 +172,7 @@ namespace Grep.Core.Console
                     }
                     catch (UnauthorizedAccessException ex)
                     {
-                        lock (Console.Out)
-                        {
-                            Write(Path.GetRelativePath(pathToSearch, fileInfo.Path), ConsoleColor.Red);
-                            Write(" - ", ConsoleColor.DarkGray);
-                            Write(ex.Message, ConsoleColor.DarkGray);
-
-                            Console.WriteLine();
-                        }
-
+                        results.Results.Add((Path.GetRelativePath(pathToSearch, fileInfo.Path), null, ex.Message));
                         return;
                     }
 
@@ -197,7 +190,7 @@ namespace Grep.Core.Console
 
                         if (matches.Result.Count > 0)
                         {
-                            results.Results.Add((Path.GetRelativePath(pathToSearch, fileInfo.Path), matches.Result));
+                            results.Results.Add((Path.GetRelativePath(pathToSearch, fileInfo.Path), matches.Result, null));
                         }
                     });
 
@@ -250,7 +243,7 @@ namespace Grep.Core.Console
             public int TotalFiles = 0;
 #pragma warning restore SA1401 // Fields should be private
 
-            public BlockingCollection<(string fileName, IList<GrepMatch> matches)> Results { get; } = new BlockingCollection<(string fileName, IList<GrepMatch> matches)>();
+            public BlockingCollection<(string fileName, IList<GrepMatch> matches, string error)> Results { get; } = new BlockingCollection<(string fileName, IList<GrepMatch> matches, string error)>();
         }
     }
 }
