@@ -106,7 +106,7 @@ namespace Grep.Core.Console
                     }
                 });
 
-                var processTask = ProcessFiles(file.Values, matcher, results, recurse.HasValue(), listFileMatches.HasValue(), ignoreBinary.HasValue(), excludeDir.Value());
+                var processTask = ProcessFiles(file.Values, matcher, results, recurse.HasValue(), ignoreBinary.HasValue(), excludeDir.Value());
 
                 await Task.WhenAll(printTask, processTask).ContinueWith(t =>
                 {
@@ -127,7 +127,7 @@ namespace Grep.Core.Console
             return app;
         }
 
-        private static Task ProcessFiles(IEnumerable<string> filePatterns, ITextMatcher matcher, ResultInfo results, bool recurse, bool listFileMatches, bool ignoreBinary, string excludeDir)
+        private static Task ProcessFiles(IEnumerable<string> filePatterns, ITextMatcher matcher, ResultInfo results, bool recurse, bool ignoreBinary, string excludeDir)
         {
             var tasks = new ConcurrentBag<Task>();
 
@@ -145,27 +145,26 @@ namespace Grep.Core.Console
                     AttributesToSkip = 0,
                 };
 
-                FileSystemEnumerable<string> files;
+                FileSystemEnumerable<(string Path, long Length)> files;
                 if (dirRegex == null)
                 {
-                    files = new FileSystemEnumerable<string>(pathToSearch, (ref FileSystemEntry entry) => entry.ToFullPath(), options)
+                    files = new FileSystemEnumerable<(string Path, long Length)>(pathToSearch, (ref FileSystemEntry entry) => (entry.ToFullPath(), entry.Length), options)
                     {
                         ShouldIncludePredicate = (ref FileSystemEntry entry) => !entry.IsDirectory && FileSystemName.MatchesSimpleExpression(fileToSearch, entry.FileName),
                     };
                 }
                 else
                 {
-                    files = new FileSystemEnumerable<string>(pathToSearch, (ref FileSystemEntry entry) => entry.ToFullPath(), options)
+                    files = new FileSystemEnumerable<(string Path, long Length)>(pathToSearch, (ref FileSystemEntry entry) => (entry.ToFullPath(), entry.Length), options)
                     {
                         ShouldIncludePredicate = (ref FileSystemEntry entry) => !entry.IsDirectory && FileSystemName.MatchesSimpleExpression(fileToSearch, entry.FileName) && !dirRegex.IsMatch(entry.Directory.ToString()),
                     };
                 }
 
-                Parallel.ForEach(files, (fileName) =>
+                Parallel.ForEach(files, (fileInfo) =>
                 {
                     Interlocked.Increment(ref results.TotalFiles);
-                    var info = new FileInfo(fileName);
-                    if (info.Length == 0)
+                    if (fileInfo.Length == 0)
                     {
                         return;
                     }
@@ -173,13 +172,13 @@ namespace Grep.Core.Console
                     MemoryMappedFile mmf;
                     try
                     {
-                        mmf = MemoryMappedFile.CreateFromFile(fileName, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
+                        mmf = MemoryMappedFile.CreateFromFile(fileInfo.Path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
                     }
                     catch (IOException ex)
                     {
                         lock (Console.Out)
                         {
-                            Write(Path.GetRelativePath(pathToSearch, fileName), ConsoleColor.Red);
+                            Write(Path.GetRelativePath(pathToSearch, fileInfo.Path), ConsoleColor.Red);
                             Write(" - ", ConsoleColor.DarkGray);
                             Write(ex.Message, ConsoleColor.DarkGray);
 
@@ -189,7 +188,25 @@ namespace Grep.Core.Console
                         return;
                     }
 
-                    var stream = mmf.CreateViewStream(0, info.Length, MemoryMappedFileAccess.Read);
+                    MemoryMappedViewStream stream;
+                    try
+                    {
+                        stream = mmf.CreateViewStream(0, fileInfo.Length, MemoryMappedFileAccess.Read);
+                    }
+                    catch (UnauthorizedAccessException ex)
+                    {
+                        lock (Console.Out)
+                        {
+                            Write(Path.GetRelativePath(pathToSearch, fileInfo.Path), ConsoleColor.Red);
+                            Write(" - ", ConsoleColor.DarkGray);
+                            Write(ex.Message, ConsoleColor.DarkGray);
+
+                            Console.WriteLine();
+                        }
+
+                        return;
+                    }
+
                     var content = new StreamContentProvider(stream);
 
                     if (ignoreBinary)
@@ -200,7 +217,7 @@ namespace Grep.Core.Console
 
                         for (int i = 0; i < buffer.Length; i++)
                         {
-                            if (i == info.Length)
+                            if (i == fileInfo.Length)
                             {
                                 break;
                             }
@@ -222,7 +239,7 @@ namespace Grep.Core.Console
 
                         if (matches.Result.Count > 0)
                         {
-                            results.Results.Add((Path.GetRelativePath(pathToSearch, fileName), info, matches.Result));
+                            results.Results.Add((Path.GetRelativePath(pathToSearch, fileInfo.Path), matches.Result));
                         }
                     });
 
@@ -275,7 +292,7 @@ namespace Grep.Core.Console
             public int TotalFiles = 0;
 #pragma warning restore SA1401 // Fields should be private
 
-            public BlockingCollection<(string fileName, FileInfo fileInfo, IList<GrepMatch> matches)> Results { get; } = new BlockingCollection<(string fileName, FileInfo fileInfo, IList<GrepMatch> matches)>();
+            public BlockingCollection<(string fileName, IList<GrepMatch> matches)> Results { get; } = new BlockingCollection<(string fileName, IList<GrepMatch> matches)>();
         }
     }
 }
