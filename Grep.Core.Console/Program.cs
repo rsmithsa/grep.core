@@ -135,31 +135,7 @@ namespace Grep.Core.Console
 
             foreach (var filePattern in filePatterns)
             {
-                var pathToSearch = Path.GetDirectoryName(filePattern);
-                pathToSearch = string.IsNullOrEmpty(pathToSearch) ? "." : pathToSearch;
-                var fileToSearch = Path.GetFileName(filePattern);
-
-                var options = new EnumerationOptions()
-                {
-                    RecurseSubdirectories = recurse,
-                    AttributesToSkip = 0,
-                };
-
-                FileSystemEnumerable<(string Path, long Length)> files;
-                if (dirRegex == null)
-                {
-                    files = new FileSystemEnumerable<(string Path, long Length)>(pathToSearch, (ref FileSystemEntry entry) => (entry.ToFullPath(), entry.Length), options)
-                    {
-                        ShouldIncludePredicate = (ref FileSystemEntry entry) => !entry.IsDirectory && FileSystemName.MatchesSimpleExpression(fileToSearch, entry.FileName),
-                    };
-                }
-                else
-                {
-                    files = new FileSystemEnumerable<(string Path, long Length)>(pathToSearch, (ref FileSystemEntry entry) => (entry.ToFullPath(), entry.Length), options)
-                    {
-                        ShouldIncludePredicate = (ref FileSystemEntry entry) => !entry.IsDirectory && FileSystemName.MatchesSimpleExpression(fileToSearch, entry.FileName) && !dirRegex.IsMatch(entry.Directory.ToString()),
-                    };
-                }
+                var (pathToSearch, files) = FileProvider.EnumerateFiles(filePattern, recurse, dirRegex);
 
                 Parallel.ForEach(files, (fileInfo) =>
                 {
@@ -207,34 +183,16 @@ namespace Grep.Core.Console
                         return;
                     }
 
-                    var content = new StreamContentProvider(stream);
-
-                    if (ignoreBinary)
+                    if (ignoreBinary && FileProvider.IsBinary(stream, fileInfo.Length))
                     {
-                        // Heuristic for binary files
-                        Span<byte> buffer = stackalloc byte[128];
-                        stream.Read(buffer);
-
-                        for (int i = 0; i < buffer.Length; i++)
-                        {
-                            if (i == fileInfo.Length)
-                            {
-                                break;
-                            }
-
-                            if (buffer[i] == 0)
-                            {
-                                // Assume file with NUL is binary;
-                                return;
-                            }
-                        }
-
-                        stream.Position = 0;
+                        return;
                     }
+
+                    var content = new StreamContentProvider(stream);
 
                     var task = matcher.GetMatches(content).ContinueWith(matches =>
                     {
-                        stream.Close();
+                        stream.Dispose();
                         mmf.Dispose();
 
                         if (matches.Result.Count > 0)
