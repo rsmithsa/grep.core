@@ -70,50 +70,7 @@ namespace Grep.Core.Console
 
                 var results = new ResultInfo();
 
-                var printTask = Task.Run(() =>
-                {
-                    while (!results.Results.IsCompleted)
-                    {
-                        try
-                        {
-                            var data = results.Results.Take();
-
-                            lock (Console.Out)
-                            {
-                                if (data.error != null)
-                                {
-                                    Write(data.fileName, ConsoleColor.Red);
-                                    Write(" - ", ConsoleColor.DarkGray);
-                                    Write(data.error, ConsoleColor.DarkGray);
-                                }
-                                else
-                                {
-                                    results.MatchedFiles++;
-                                    results.TotalMatches += data.matches.Count;
-                                    Write(data.fileName, ConsoleColor.Yellow);
-                                    Write(" - ", ConsoleColor.DarkGray);
-                                    Write($"{data.matches.Count} match(es)", ConsoleColor.Blue);
-                                    if (!listFileMatches.HasValue())
-                                    {
-                                        WriteLine(":", ConsoleColor.DarkGray);
-                                        foreach (var match in data.matches)
-                                        {
-                                            var formatted = formatter.FormatMatch(match);
-                                            Write(formatted);
-                                        }
-                                    }
-                                }
-
-                                Console.WriteLine();
-                            }
-                        }
-                        catch (InvalidOperationException)
-                        {
-                            // Take() was called on a completed collection.
-                            // We will break out on the next iteration.
-                        }
-                    }
-                });
+                var printTask = PrintResults(results, formatter, listFileMatches.HasValue());
 
                 var processTask = ProcessFiles(file.Values, matcher, results, recurse.HasValue(), ignoreBinary.HasValue(), excludeDir.Value());
 
@@ -134,6 +91,54 @@ namespace Grep.Core.Console
             });
 
             return app;
+        }
+
+        private static Task PrintResults(ResultInfo results, IMatchFormatter formatter, bool listFileMatches)
+        {
+            return Task.Run(() =>
+            {
+                while (!results.Results.IsCompleted)
+                {
+                    try
+                    {
+                        var data = results.Results.Take();
+
+                        lock (Console.Out)
+                        {
+                            if (data.error != null)
+                            {
+                                Write(data.fileName, ConsoleColor.Red);
+                                Write(" - ", ConsoleColor.DarkGray);
+                                Write(data.error, ConsoleColor.DarkGray);
+                            }
+                            else
+                            {
+                                results.MatchedFiles++;
+                                results.TotalMatches += data.matches.Count;
+                                Write(data.fileName, ConsoleColor.Yellow);
+                                Write(" - ", ConsoleColor.DarkGray);
+                                Write($"{data.matches.Count} match(es)", ConsoleColor.Blue);
+                                if (!listFileMatches)
+                                {
+                                    WriteLine(":", ConsoleColor.DarkGray);
+                                    foreach (var match in data.matches)
+                                    {
+                                        var formatted = formatter.FormatMatch(match);
+                                        Write(formatted);
+                                    }
+                                }
+                            }
+
+                            Console.WriteLine();
+                        }
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // Take() was called on a completed collection.
+                        // We will break out on the next iteration.
+                    }
+                }
+            });
         }
 
         private static Task ProcessFiles(IEnumerable<string> filePatterns, ITextMatcher matcher, ResultInfo results, bool recurse, bool ignoreBinary, string excludeDir)
