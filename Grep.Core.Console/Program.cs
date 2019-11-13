@@ -60,7 +60,7 @@ namespace Grep.Core.Console
 
             var file = app.Argument("FILE", "Input files to search", multipleValues: true).IsRequired();
 
-            app.OnExecute(async () =>
+            app.OnExecuteAsync(async cancellationToken =>
             {
                 var sw = Stopwatch.StartNew();
 
@@ -70,9 +70,9 @@ namespace Grep.Core.Console
 
                 var results = new ResultInfo();
 
-                var printTask = PrintResults(results, formatter, listFileMatches.HasValue());
+                var printTask = PrintResults(results, formatter, listFileMatches.HasValue(), cancellationToken);
 
-                var processTask = ProcessFiles(file.Values, matcher, results, recurse.HasValue(), ignoreBinary.HasValue(), excludeDir.Value());
+                var processTask = ProcessFiles(file.Values, matcher, results, recurse.HasValue(), ignoreBinary.HasValue(), excludeDir.Value(), cancellationToken);
 
                 await Task.WhenAll(printTask, processTask).ContinueWith(t =>
                 {
@@ -93,12 +93,14 @@ namespace Grep.Core.Console
             return app;
         }
 
-        private static Task PrintResults(ResultInfo results, IMatchFormatter formatter, bool listFileMatches)
+        private static Task PrintResults(ResultInfo results, IMatchFormatter formatter, bool listFileMatches, CancellationToken cancellationToken)
         {
             return Task.Run(() =>
             {
                 while (!results.Results.IsCompleted)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     try
                     {
                         var data = results.Results.Take();
@@ -141,7 +143,7 @@ namespace Grep.Core.Console
             });
         }
 
-        private static Task ProcessFiles(IEnumerable<string> filePatterns, ITextMatcher matcher, ResultInfo results, bool recurse, bool ignoreBinary, string excludeDir)
+        private static Task ProcessFiles(IEnumerable<string> filePatterns, ITextMatcher matcher, ResultInfo results, bool recurse, bool ignoreBinary, string excludeDir, CancellationToken cancellationToken)
         {
             var tasks = new ConcurrentBag<Task>();
 
@@ -151,8 +153,11 @@ namespace Grep.Core.Console
             {
                 var (pathToSearch, files) = FileProvider.EnumerateFiles(filePattern, recurse, dirRegex);
 
-                Parallel.ForEach(files, (fileInfo) =>
+                var parallelOptions = new ParallelOptions { CancellationToken = cancellationToken };
+                Parallel.ForEach(files, parallelOptions, (fileInfo) =>
                 {
+                    parallelOptions.CancellationToken.ThrowIfCancellationRequested();
+
                     Interlocked.Increment(ref results.TotalFiles);
                     if (fileInfo.Length == 0)
                     {

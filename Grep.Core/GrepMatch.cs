@@ -11,7 +11,7 @@ namespace Grep.Core
     using System.Text;
 
     /// <summary>
-    /// Match detail for a match grep.core.
+    /// Match detail for a match in grep.core.
     /// </summary>
     public class GrepMatch
     {
