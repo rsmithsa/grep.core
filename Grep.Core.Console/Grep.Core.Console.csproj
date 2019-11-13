@@ -2,12 +2,13 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
     <RootNamespace>Grep.Core.Console</RootNamespace>
     <AssemblyName>Grep.Core.Console</AssemblyName>
     <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <Version>1.1.2-pre</Version>
+    <Version>1.1.3-pre</Version>
   </PropertyGroup>
 
   <ItemGroup>

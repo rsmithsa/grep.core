@@ -20,6 +20,7 @@ namespace Grep.Core.Console
     using System.Threading.Tasks;
 
     using Grep.Core.ContentProviders;
+    using Grep.Core.FileProviders;
     using Grep.Core.Formatters;
     using Grep.Core.Matchers;
     using McMaster.Extensions.CommandLineUtils;
@@ -64,6 +65,8 @@ namespace Grep.Core.Console
             {
                 var sw = Stopwatch.StartNew();
 
+                var fileProviders = file.Values.Select(x => (IFileProvider)new DefaultFileProvider(x, recurse.HasValue(), excludeDir.Value())).ToList();
+
                 var matcher = isSimplePattern.HasValue() ? (ITextMatcher)new SimpleMatcher(regexp.Value(), ignoreCase.HasValue()) : (ITextMatcher)new RegexMatcher(regexp.Value(), ignoreCase.HasValue());
 
                 var formatter = new DefaultFormatter();
@@ -72,7 +75,7 @@ namespace Grep.Core.Console
 
                 var printTask = PrintResults(results, formatter, listFileMatches.HasValue(), cancellationToken);
 
-                var processTask = ProcessFiles(file.Values, matcher, results, recurse.HasValue(), ignoreBinary.HasValue(), excludeDir.Value(), cancellationToken);
+                var processTask = ProcessFiles(fileProviders, matcher, results, ignoreBinary.HasValue(), cancellationToken);
 
                 await Task.WhenAll(printTask, processTask).ContinueWith(t =>
                 {
@@ -107,11 +110,11 @@ namespace Grep.Core.Console
 
                         lock (Console.Out)
                         {
-                            if (data.error != null)
+                            if (data.error != null || data.matches == null)
                             {
                                 Write(data.fileName, ConsoleColor.Red);
                                 Write(" - ", ConsoleColor.DarkGray);
-                                Write(data.error, ConsoleColor.DarkGray);
+                                Write(data.error ?? "Unknown Error", ConsoleColor.DarkGray);
                             }
                             else
                             {
@@ -143,15 +146,13 @@ namespace Grep.Core.Console
             });
         }
 
-        private static Task ProcessFiles(IEnumerable<string> filePatterns, ITextMatcher matcher, ResultInfo results, bool recurse, bool ignoreBinary, string excludeDir, CancellationToken cancellationToken)
+        private static Task ProcessFiles(IEnumerable<IFileProvider> fileProviders, ITextMatcher matcher, ResultInfo results, bool ignoreBinary, CancellationToken cancellationToken)
         {
             var tasks = new ConcurrentBag<Task>();
 
-            var dirRegex = string.IsNullOrEmpty(excludeDir) ? null : new Regex(excludeDir, RegexOptions.Compiled);
-
-            foreach (var filePattern in filePatterns)
+            foreach (var fileProvider in fileProviders)
             {
-                var (pathToSearch, files) = FileProvider.EnumerateFiles(filePattern, recurse, dirRegex);
+                var files = fileProvider.EnumerateFiles();
 
                 var parallelOptions = new ParallelOptions { CancellationToken = cancellationToken };
                 Parallel.ForEach(files, parallelOptions, (fileInfo) =>
@@ -171,7 +172,7 @@ namespace Grep.Core.Console
                     }
                     catch (IOException ex)
                     {
-                        results.Results.Add((Path.GetRelativePath(pathToSearch, fileInfo.Path), null, ex.Message));
+                        results.Results.Add((Path.GetRelativePath(fileProvider.SearchPath, fileInfo.Path), null, ex.Message));
                         return;
                     }
 
@@ -182,11 +183,11 @@ namespace Grep.Core.Console
                     }
                     catch (UnauthorizedAccessException ex)
                     {
-                        results.Results.Add((Path.GetRelativePath(pathToSearch, fileInfo.Path), null, ex.Message));
+                        results.Results.Add((Path.GetRelativePath(fileProvider.SearchPath, fileInfo.Path), null, ex.Message));
                         return;
                     }
 
-                    if (ignoreBinary && FileProvider.IsBinary(stream, fileInfo.Length))
+                    if (ignoreBinary && fileProvider.IsBinary(stream, fileInfo.Length))
                     {
                         return;
                     }
@@ -200,7 +201,7 @@ namespace Grep.Core.Console
 
                         if (matches.Result.Count > 0)
                         {
-                            results.Results.Add((Path.GetRelativePath(pathToSearch, fileInfo.Path), matches.Result, null));
+                            results.Results.Add((Path.GetRelativePath(fileProvider.SearchPath, fileInfo.Path), matches.Result, null));
                         }
                     });
 
@@ -253,7 +254,7 @@ namespace Grep.Core.Console
             public int TotalFiles = 0;
 #pragma warning restore SA1401 // Fields should be private
 
-            public BlockingCollection<(string fileName, IList<GrepMatch> matches, string error)> Results { get; } = new BlockingCollection<(string fileName, IList<GrepMatch> matches, string error)>();
+            public BlockingCollection<(string fileName, IList<GrepMatch>? matches, string? error)> Results { get; } = new BlockingCollection<(string fileName, IList<GrepMatch>? matches, string? error)>();
         }
     }
 }

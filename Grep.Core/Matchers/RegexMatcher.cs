@@ -25,7 +25,7 @@ namespace Grep.Core.Matchers
         /// </summary>
         /// <param name="pattern">The pattern to match.</param>
         /// <param name="ignoreCase">Specifies case-insensitive matching.</param>
-        public RegexMatcher(string pattern, bool ignoreCase)
+        public RegexMatcher(string? pattern, bool ignoreCase)
         {
             if (pattern == null)
             {

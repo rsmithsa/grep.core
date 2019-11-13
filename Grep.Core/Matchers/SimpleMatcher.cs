@@ -25,7 +25,7 @@ namespace Grep.Core.Matchers
         /// </summary>
         /// <param name="textToMatch">The text to match.</param>
         /// <param name="ignoreCase">Specifies case-insensitive matching.</param>
-        public SimpleMatcher(string textToMatch, bool ignoreCase)
+        public SimpleMatcher(string? textToMatch, bool ignoreCase)
         {
             if (textToMatch == null)
             {
