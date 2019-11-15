@@ -74,7 +74,8 @@ namespace Grep.Core.Console
 
                 var processTask = ProcessFiles(fileProviders, matcher, results, ignoreBinary.HasValue(), cancellationToken);
 
-                await Task.WhenAll(printTask, processTask).ContinueWith(t =>
+                await Task.WhenAll(printTask, processTask).ContinueWith(
+                t =>
                 {
                     sw.Stop();
                     Write($"{results.MatchedFiles} file(s)", ConsoleColor.Yellow);
@@ -87,7 +88,8 @@ namespace Grep.Core.Console
                         Console.WriteLine("Press any key to continue...");
                         Console.ReadKey(true);
                     }
-                });
+                },
+                cancellationToken);
             });
 
             return app;
@@ -95,7 +97,8 @@ namespace Grep.Core.Console
 
         private static Task PrintResults(ResultInfo results, IMatchFormatter formatter, bool listFileMatches, CancellationToken cancellationToken)
         {
-            return Task.Run(() =>
+            return Task.Run(
+            () =>
             {
                 while (!results.Results.IsCompleted)
                 {
@@ -140,7 +143,8 @@ namespace Grep.Core.Console
                         // We will break out on the next iteration.
                     }
                 }
-            });
+            },
+            cancellationToken);
         }
 
         private static Task ProcessFiles(IEnumerable<IFileProvider> fileProviders, ITextMatcher matcher, ResultInfo results, bool ignoreBinary, CancellationToken cancellationToken)
@@ -192,10 +196,12 @@ namespace Grep.Core.Console
                 });
             }
 
-            return Task.WhenAll(tasks).ContinueWith(t =>
+            return Task.WhenAll(tasks).ContinueWith(
+            t =>
             {
                 results.Results.CompleteAdding();
-            });
+            },
+            cancellationToken);
         }
 
         private static void Write(FormattedMatch formattedMatch)
