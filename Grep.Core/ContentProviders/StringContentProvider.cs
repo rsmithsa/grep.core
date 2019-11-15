@@ -14,7 +14,7 @@ namespace Grep.Core.ContentProviders
     /// <summary>
     /// An <see cref="ITextContentProvider"/> which wraps a <see cref="StringReader"/>.
     /// </summary>
-    public class StringContentProvider : ITextContentProvider
+    public sealed class StringContentProvider : ITextContentProvider, IDisposable
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="StringContentProvider"/> class.
@@ -32,5 +32,14 @@ namespace Grep.Core.ContentProviders
 
         /// <inheritdoc />
         public TextReader Content { get; }
+
+        /// <inheritdoc />
+        public bool IsBinary { get; } = false;
+
+        /// <inheritdoc />
+        public void Dispose()
+        {
+            this.Content?.Dispose();
+        }
     }
 }

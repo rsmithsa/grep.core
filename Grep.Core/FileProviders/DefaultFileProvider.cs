@@ -73,33 +73,5 @@ namespace Grep.Core.FileProviders
 
             return files;
         }
-
-        /// <inheritdoc />
-        public bool IsBinary(Stream stream, long fileLength)
-        {
-            var originalPosition = stream.Position;
-
-            // Heuristic for binary files
-            Span<byte> buffer = stackalloc byte[128];
-            stream.Read(buffer);
-
-            for (int i = 0; i < buffer.Length; i++)
-            {
-                if (i == fileLength)
-                {
-                    return false;
-                }
-
-                if (buffer[i] == 0)
-                {
-                    // Assume file with NUL is binary;
-                    return true;
-                }
-            }
-
-            stream.Position = originalPosition;
-
-            return false;
-        }
     }
 }

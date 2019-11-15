@@ -11,11 +11,8 @@ namespace Grep.Core.Console
     using System.Collections.Generic;
     using System.Diagnostics;
     using System.IO;
-    using System.IO.Enumeration;
-    using System.IO.MemoryMappedFiles;
     using System.Linq;
     using System.Reflection;
-    using System.Text.RegularExpressions;
     using System.Threading;
     using System.Threading.Tasks;
 
@@ -165,39 +162,25 @@ namespace Grep.Core.Console
                         return;
                     }
 
-                    MemoryMappedFile mmf;
+                    MemoryMappedFileContentProvider content;
                     try
                     {
-                        mmf = MemoryMappedFile.CreateFromFile(fileInfo.Path, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
+                        content = new MemoryMappedFileContentProvider(fileInfo.Path, fileInfo.Length);
                     }
-                    catch (IOException ex)
+                    catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
                     {
                         results.Results.Add((Path.GetRelativePath(fileProvider.SearchPath, fileInfo.Path), null, ex.Message));
                         return;
                     }
 
-                    MemoryMappedViewStream stream;
-                    try
-                    {
-                        stream = mmf.CreateViewStream(0, fileInfo.Length, MemoryMappedFileAccess.Read);
-                    }
-                    catch (UnauthorizedAccessException ex)
-                    {
-                        results.Results.Add((Path.GetRelativePath(fileProvider.SearchPath, fileInfo.Path), null, ex.Message));
-                        return;
-                    }
-
-                    if (ignoreBinary && fileProvider.IsBinary(stream, fileInfo.Length))
+                    if (ignoreBinary && content.IsBinary)
                     {
                         return;
                     }
-
-                    var content = new StreamContentProvider(stream);
 
                     var task = matcher.GetMatches(content).ContinueWith(matches =>
                     {
-                        stream.Dispose();
-                        mmf.Dispose();
+                        content.Dispose();
 
                         if (matches.Result.Count > 0)
                         {
@@ -212,7 +195,6 @@ namespace Grep.Core.Console
             return Task.WhenAll(tasks).ContinueWith(t =>
             {
                 results.Results.CompleteAdding();
-                return;
             });
         }
 

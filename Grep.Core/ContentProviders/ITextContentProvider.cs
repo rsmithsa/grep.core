@@ -20,5 +20,10 @@ namespace Grep.Core.ContentProviders
         /// Gets the text content.
         /// </summary>
         TextReader Content { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether (heuristically) the content is binary.
+        /// </summary>
+        bool IsBinary { get; }
     }
 }
